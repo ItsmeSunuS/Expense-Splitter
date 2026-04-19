@@ -7,7 +7,7 @@ const app = express()
 
 app.use(cors(
   {
-  origin: "https://your-frontend.vercel.app"
+  origin: "https://expense-splitter-d978.vercel.app/"
 }));
 app.use(express.json())
 
