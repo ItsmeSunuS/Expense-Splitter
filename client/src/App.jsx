@@ -51,16 +51,20 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Dashboard from "./components/Dashboard";
 import CreateGroup from "./components/CreateGroup";
+import BalanceSummary from "./components/BalanceSummary";
+import AddExpense from "./components/AddExpense";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         <Route path="/" element={<Dashboard />} />
-
         <Route path="/groups" element={<CreateGroup />} />
+        <Route path="/expenses/new" element={<AddExpense />} />
+        <Route path="/balances" element={<BalanceSummary />} />
 
+        {/* IMPORTANT fallback */}
+        <Route path="*" element={<div>Page Not Found</div>} />
       </Routes>
     </BrowserRouter>
   );

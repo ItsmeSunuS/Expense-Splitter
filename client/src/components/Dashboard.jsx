@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import API from "../services/api";
+
 import {
   ResponsiveContainer,
   BarChart,
@@ -10,10 +12,12 @@ import {
   CartesianGrid,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import API from "../services/api";
 
-/* -------------------- Styles -------------------- */
+/* ---------------- STYLE ---------------- */
 const styles = {
   page: {
     maxWidth: "1200px",
@@ -28,21 +32,12 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "start",
-    marginBottom: "24px",
+    marginBottom: "12px",
   },
 
-  title: {
-    fontSize: "28px",
-    fontWeight: "700",
-    margin: 0,
-    color: "#111827",
-  },
+  title: { fontSize: "28px", fontWeight: "700", color: "#111827", margin: 0 },
 
-  subtitle: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginTop: "4px",
-  },
+  subtitle: { fontSize: "13px", color: "#6b7280" },
 
   button: {
     background: "#111827",
@@ -52,194 +47,222 @@ const styles = {
     textDecoration: "none",
     fontSize: "13px",
     fontWeight: "500",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+  },
+
+  nav: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "18px",
+  },
+
+  navBtn: {
+    padding: "8px 12px",
+    borderRadius: "8px",
+    border: "1px solid #e5e7eb",
+    background: "white",
+    fontSize: "13px",
+    textDecoration: "none",
+    color: "#111827",
+    fontWeight: "500",
+  },
+
+  select: {
+    padding: "8px 10px",
+    borderRadius: "8px",
+    border: "1px solid #e5e7eb",
+    fontSize: "13px",
   },
 
   grid4: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "14px",
   },
 
   grid3: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: "16px",
+    gap: "14px",
     marginTop: "16px",
   },
 
   card: {
     background: "white",
     borderRadius: "14px",
-    padding: "18px",
+    padding: "16px",
     boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
-    border: "1px solid #f1f5f9",
   },
 
   section: {
     background: "white",
     borderRadius: "14px",
-    padding: "18px",
+    padding: "16px",
     boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
-    border: "1px solid #f1f5f9",
   },
 
-  label: {
-    fontSize: "11px",
-    letterSpacing: "1px",
-    textTransform: "uppercase",
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-
-  value: {
-    fontSize: "22px",
-    fontWeight: "700",
-    marginTop: "10px",
-    color: "#111827",
-  },
-
-  hint: {
-    fontSize: "12px",
-    color: "#9ca3af",
-    marginTop: "4px",
-  },
-
-  error: {
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-    color: "#b91c1c",
-    padding: "10px",
-    borderRadius: "10px",
-    fontSize: "13px",
-    marginBottom: "16px",
-  },
-
-  listItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "10px 0",
-    borderBottom: "1px solid #eee",
+  list: {
+    marginTop: "16px",
+    background: "white",
+    borderRadius: "14px",
+    padding: "16px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
   },
 };
 
-/* -------------------- Helpers -------------------- */
-function formatCurrency(n) {
-  return new Intl.NumberFormat("en-IN", {
+/* ---------------- FORMAT ---------------- */
+const format = (n) =>
+  new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(n || 0);
-}
 
-/* -------------------- Component -------------------- */
+/* ---------------- COMPONENT ---------------- */
 export default function Dashboard() {
   const [groups, setGroups] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState("all");
 
   useEffect(() => {
-    let cancelled = false;
-
     async function load() {
       try {
-        setLoading(true);
-        setError(null);
-
-        const [g, e] = await Promise.allSettled([
+        const [g, e] = await Promise.all([
           API.get("/groups"),
           API.get("/expenses"),
         ]);
 
-        if (cancelled) return;
-
-        if (g.status === "fulfilled") setGroups(g.value.data || []);
-        if (e.status === "fulfilled") setExpenses(e.value.data || []);
-
-        if (g.status === "rejected" && e.status === "rejected") {
-          setError("Could not reach the API. Check your API base URL.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+        setGroups(g.data || []);
+        setExpenses(e.data || []);
+      } catch (err) {
+        console.error("API error:", err);
       }
     }
 
     load();
-    return () => (cancelled = true);
   }, []);
 
-  const totalSpent = expenses.reduce((s, x) => s + (x.amount || 0), 0);
-  const avgPerExpense = expenses.length ? totalSpent / expenses.length : 0;
+  /* ---------------- FIX: NORMALIZE DATA ---------------- */
+  const normalized = useMemo(() => {
+    return expenses.map((e) => ({
+      amount: Number(e.amount || e.totalAmount || 0),
 
-  const groupMap = new Map(
-    groups.map((g) => [g._id || g.id || "", g.name])
+      groupId:
+        typeof e.groupId === "object"
+          ? e.groupId._id
+          : e.groupId || e.group,
+
+      createdAt: e.createdAt || e.date || null,
+
+      description: e.description || "Expense",
+      paidBy: e.paidBy || "Unknown",
+    }));
+  }, [expenses]);
+
+  /* ---------------- FILTER ---------------- */
+  const filtered = useMemo(() => {
+    if (selectedGroup === "all") return normalized;
+
+    return normalized.filter(
+      (e) => String(e.groupId) === String(selectedGroup)
+    );
+  }, [normalized, selectedGroup]);
+
+  /* ---------------- GROUP MAP ---------------- */
+  const groupMap = useMemo(
+    () => new Map(groups.map((g) => [g._id || g.id, g.name])),
+    [groups]
   );
 
-  const perGroup = new Map();
-  for (const ex of expenses) {
-    const key = groupMap.get(ex.groupId) || "Unknown";
-    perGroup.set(key, (perGroup.get(key) || 0) + (ex.amount || 0));
-  }
+  /* ---------------- TOTAL ---------------- */
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
 
-  const perGroupData = Array.from(perGroup.entries())
-    .map(([name, value]) => ({ name, value }))
-    .slice(0, 6);
+  /* ---------------- GROUP CHART ---------------- */
+  const groupAgg = new Map();
 
-  const days = [];
-  const today = new Date();
+  filtered.forEach((e) => {
+    const name = groupMap.get(e.groupId) || "Unknown";
+    groupAgg.set(name, (groupAgg.get(name) || 0) + e.amount);
+  });
 
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    days.push({ date: d.toISOString().slice(5, 10), total: 0 });
-  }
+  const groupData = Array.from(groupAgg.entries()).map(([name, value]) => ({
+    name,
+    value,
+  }));
 
-  for (const ex of expenses) {
-    if (!ex.createdAt) continue;
-    const key = new Date(ex.createdAt).toISOString().slice(5, 10);
+  /* ---------------- TREND ---------------- */
+  const days = Array.from({ length: 14 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    return {
+      date: d.toISOString().slice(5, 10),
+      total: 0,
+    };
+  });
+
+  filtered.forEach((e) => {
+    if (!e.createdAt) return;
+    const key = new Date(e.createdAt).toISOString().slice(5, 10);
     const day = days.find((d) => d.date === key);
-    if (day) day.total += ex.amount || 0;
-  }
+    if (day) day.total += e.amount;
+  });
 
-  const recent = [...expenses]
+  const COLORS = ["#111827", "#4f46e5", "#10b981", "#f59e0b", "#ef4444"];
+
+  const recent = [...filtered]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .slice(0, 5);
 
   return (
     <div style={styles.page}>
-      {/* Header */}
+      {/* HEADER */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Dashboard</h1>
-          <p style={styles.subtitle}>
-            A snapshot of your groups and spending
-          </p>
+          <p style={styles.subtitle}>Track expenses & balances easily</p>
         </div>
 
-        <Link to="/expenses" style={styles.button}>
+        <Link to="/expenses/new" style={styles.button}>
           + Add Expense
         </Link>
       </div>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {/* NAV */}
+      <div style={styles.nav}>
+        <select
+          style={styles.select}
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+        >
+          <option value="all">All Groups</option>
+          {groups.map((g) => (
+            <option key={g._id || g.id} value={g._id || g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
 
-      {/* Stats */}
+        <Link to="/groups" style={styles.navBtn}>👥 Groups</Link>
+        <Link to="/expenses/new" style={styles.navBtn}>➕ Expense</Link>
+        <Link to="/balances" style={styles.navBtn}>⚖ Balances</Link>
+      </div>
+
+      {/* STATS */}
       <div style={styles.grid4}>
-        <StatCard label="Total spent" value={formatCurrency(totalSpent)} />
-        <StatCard label="Groups" value={groups.length} />
-        <StatCard label="Avg expense" value={formatCurrency(avgPerExpense)} />
-        <StatCard
-          label="14 days"
-          value={formatCurrency(days.reduce((s, d) => s + d.total, 0))}
+        <Stat label="Total Spent" value={format(total)} />
+        <Stat label="Groups" value={groups.length} />
+        <Stat label="Expenses" value={filtered.length} />
+        <Stat
+          label="Avg"
+          value={format(total / (filtered.length || 1))}
         />
       </div>
 
-      {/* Charts */}
+      {/* CHARTS */}
       <div style={styles.grid3}>
         <div style={styles.section}>
-          <h3>Last 14 days</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <h3>📈 Trend</h3>
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={days}>
               <CartesianGrid stroke="#eee" />
               <XAxis dataKey="date" />
@@ -251,9 +274,9 @@ export default function Dashboard() {
         </div>
 
         <div style={styles.section}>
-          <h3>By Group</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={perGroupData}>
+          <h3>📊 By Group</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={groupData}>
               <CartesianGrid stroke="#eee" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -262,29 +285,55 @@ export default function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        <div style={styles.section}>
+          <h3>🥧 Split</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={groupData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={80}
+                label
+              >
+                {groupData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      {/* Recent */}
-      <div style={{ ...styles.section, marginTop: "16px" }}>
+      {/* RECENT */}
+      <div style={styles.list}>
         <h3>Recent Expenses</h3>
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : recent.length === 0 ? (
-          <p>No expenses yet</p>
+        {recent.length === 0 ? (
+          <p>No expenses found</p>
         ) : (
-          recent.map((ex) => (
-            <div key={ex._id || ex.id} style={styles.listItem}>
+          recent.map((e) => (
+            <div
+              key={e._id || e.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 0",
+                borderBottom: "1px solid #eee",
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 500 }}>
-                  {ex.description || "Expense"}
+                  {e.description}
                 </div>
                 <div style={{ fontSize: "12px", color: "#666" }}>
-                  {ex.paidBy}
+                  {groupMap.get(e.groupId) || "Unknown"}
                 </div>
               </div>
               <div style={{ fontWeight: 600 }}>
-                {formatCurrency(ex.amount)}
+                {format(e.amount)}
               </div>
             </div>
           ))
@@ -294,12 +343,16 @@ export default function Dashboard() {
   );
 }
 
-/* -------------------- Stat Card -------------------- */
-function StatCard({ label, value }) {
+/* ---------------- STAT CARD ---------------- */
+function Stat({ label, value }) {
   return (
     <div style={styles.card}>
-      <div style={styles.label}>{label}</div>
-      <div style={styles.value}>{value}</div>
+      <div style={{ fontSize: "12px", color: "#6b7280" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "20px", fontWeight: "700" }}>
+        {value}
+      </div>
     </div>
   );
 }

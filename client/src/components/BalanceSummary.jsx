@@ -54,9 +54,6 @@ import API from "../services/api"
  * Plain React + React Router version of the Balances page.
  * Picks a group and shows simplified "who pays whom" transfers.
  */
-import { useEffect, useState } from "react";
-import API from "../services/api";
-
 /* -------------------- Styles -------------------- */
 const styles = {
   page: {
