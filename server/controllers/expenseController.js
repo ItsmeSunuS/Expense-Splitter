@@ -52,9 +52,20 @@ const settlements = settleDebts(balances)
 res.json(settlements)
 
 }
+exports.getAllExpenses = async (req, res) => {
+  try {
+    const expenses = await Expense.find();
+    res.json(expenses);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch expenses",
+    });
+  }
+};
 
 module.exports = {
   addExpense: exports.addExpense,
   getExpenses: exports.getExpenses,
-  getBalances: exports.getBalances
+  getBalances: exports.getBalances,
+  getAllExpenses:exports.getAllExpenses   
 };

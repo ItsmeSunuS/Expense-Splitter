@@ -1,14 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
-router.get("/ping", (req, res) => {
-  res.send("Expense route is working");
-});
 
 const {
   addExpense,
   getExpenses,
-  getBalances
+  getBalances,
+  getAllExpenses
 } = require("../controllers/expenseController");
 
 // POST /api/expenses
@@ -19,5 +17,7 @@ router.get("/balances/:groupId", getBalances);
 
 // GET /api/expenses/:groupId
 router.get("/:groupId", getExpenses);
+
+router.get("/", getAllExpenses);
 
 module.exports = router;

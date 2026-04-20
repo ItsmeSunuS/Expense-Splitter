@@ -7,7 +7,8 @@ const app = express()
 
 app.use(cors(
   {
-  origin: "https://expense-splitter-d978.vercel.app/"
+  origin: "https://expense-splitter-d978.vercel.app",
+    credentials: true,
 }));
 app.use(express.json())
 
@@ -24,4 +25,8 @@ const expenseRoutes = require("./routes/expenseRoutes")
 app.use("/api/groups", groupRoutes) 
 app.use("/api/expenses", expenseRoutes)
 
-app.listen(5000, () => { console.log("Server running on port 5000") })
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
