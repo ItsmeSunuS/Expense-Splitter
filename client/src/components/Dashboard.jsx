@@ -31,7 +31,7 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "start",
+    alignItems: "center",
     marginBottom: "12px",
   },
 
@@ -141,7 +141,6 @@ export default function Dashboard() {
     };
 
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
@@ -190,16 +189,13 @@ export default function Dashboard() {
     );
   }, [normalized, selectedGroup]);
 
-  /* ---------------- GROUP MAP ---------------- */
   const groupMap = useMemo(
     () => new Map(groups.map((g) => [g._id || g.id, g.name])),
     [groups]
   );
 
-  /* ---------------- TOTAL ---------------- */
   const total = filtered.reduce((s, e) => s + e.amount, 0);
 
-  /* ---------------- GROUP CHART ---------------- */
   const groupAgg = new Map();
 
   filtered.forEach((e) => {
@@ -214,7 +210,6 @@ export default function Dashboard() {
     })
   );
 
-  /* ---------------- TREND ---------------- */
   const days = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (13 - i));
@@ -255,38 +250,47 @@ export default function Dashboard() {
 
   return (
     <div style={styles.page}>
-
-      {/* BACK BUTTON */}
-      <button
-        onClick={() => navigate(-1)}
-        style={{
-          background: "transparent",
-          border: "none",
-          fontSize: "14px",
-          color: "#4f46e5",
-          cursor: "pointer",
-          marginBottom: "16px",
-        }}
-      >
-        ← Back
-      </button>
-
       {/* HEADER */}
       <div
         style={{
           ...styles.header,
           flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "flex-start" : "center",
           gap: isMobile ? "10px" : "0px",
         }}
       >
-        <div>
-          <h1 style={styles.title}>Dashboard</h1>
+        {/* LEFT SIDE */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          {/* BACK ARROW */}
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: "20px",
+              cursor: "pointer",
+              color: "#4f46e5",
+            }}
+          >
+            ←
+          </button>
 
-          <p style={styles.subtitle}>
-            Track expenses & balances easily
-          </p>
+          <div>
+            <h1 style={styles.title}>Dashboard</h1>
+
+            <p style={styles.subtitle}>
+              Track expenses & balances easily
+            </p>
+          </div>
         </div>
 
+        {/* RIGHT SIDE */}
         <Link to="/expenses/new" style={styles.button}>
           + Add Expense
         </Link>
@@ -465,7 +469,6 @@ export default function Dashboard() {
   );
 }
 
-/* ---------------- STAT CARD ---------------- */
 function Stat({ label, value }) {
   return (
     <div style={styles.card}>
